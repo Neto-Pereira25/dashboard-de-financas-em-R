@@ -1,0 +1,91 @@
+---
+title: "Analisando FIIs"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(rvest)
+library(dplyr)
+library(DT)
+
+site <- "https://fundamentus.com.br/fii_resultado.php"
+
+fii <- read_html(site) %>%
+  html_table()
+
+fii <- fii[[1]] %>%
+  select(
+    Papel, Segmento, Cotação, 'Dividend Yield', 'P/VP',
+    'Valor de Mercado', Liquidez, 'Vacância Média'
+  ) %>%
+  mutate(
+    across(Cotação: 'Vacância Média', gsub, pattern = "\\.|%", replacement = ""),
+    across(Cotação: 'Vacância Média', gsub, pattern = ",", replacement = "."),
+    across(Cotação: 'Vacância Média', as.numeric)
+  )
+```
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+numericInput(
+  "cotacao", label = "VALOR DA COTA ATÉ:",
+  value = 150
+)
+
+numericInput(
+  "dividend_yeld", label = "DIVIDENDO YIELD MAIOR QUE:",
+  value = 4
+)
+
+sliderInput(
+  "p_vp", label = "P/VP ENTRE:",
+  min = 0, max = 2, step = 0.1,
+  value = c(0.4, 1.2)
+)
+
+sliderInput(
+  "valor_mercado", label = "VALOR DE MERCADO MAIOR QUE:",
+  min = 0, max = 1000000000, step = 500000000,
+  value = 500000000, pre = "R$ "
+)
+
+sliderInput(
+  "liquidez", label = "LIQUIDEZ MAIOR QUE:",
+  min = 0, max = 2000000, step = 1000000,
+  value = 1000000, pre = "R$ "
+)
+
+sliderInput(
+  "vacancia", label = "VACÂNCIA MÉDIA MENOR QUE:",
+  min = 0, max = 30, step = 5,
+  value = 30, post = "%"
+)
+```
+
+Column
+-----------------------------------------------------------------------
+
+### Fundos Imobiliários
+
+```{r}
+renderDataTable({
+  fii %>% 
+    filter(
+      Cotação <= input$cotacao,
+      `Dividend Yield` >= input$dividend_yeld,
+      `P/VP` >= input$p_vp[1], `P/VP` <= input$p_vp[2],
+      `Valor de Mercado` >= input$valor_mercado,
+      Liquidez >= input$liquidez,
+      `Vacância Média` <= input$vacancia
+    ) %>% 
+    datatable(rownames = FALSE) %>% 
+    formatRound(c('Dividend Yield', 'Vacância Média', 'Cotação', 'P/VP'), digits = 2)
+})
+```

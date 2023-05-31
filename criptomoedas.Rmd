@@ -1,0 +1,124 @@
+---
+title: "Suas Cryptos"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyquant)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(DT)
+
+prices_crypto <- c(
+  "BTC", "ETH", "USDT", "BNB", "USDC",
+  "XRP", "ADA", "DOGE", "LTC", "MATIC",
+  "SHIB"
+) %>%
+  paste0("-USD") %>%
+  tq_get(get = "stock.prices", from = "2010-01-01") %>%
+  mutate(symbol = sub("-USD","", symbol))
+
+write.table(prices_crypto, "prices_crypto.csv", sep = ",", row.names = FALSE)
+
+prices_crypto <- read.csv("C:/Users/netop/r_project/dashboard/prices_crypto.csv") %>%
+  mutate(date = as.Date(date))
+
+tabela_periodo_crypto <- data.frame(
+  periodo_crypto = c("1M", "6M", "1A", "10A"),
+  dias = c(30, 180, 365, 3650)
+)
+
+colours_crypto = c(
+  "BTC" = "green", "ETH" = "blue", "USDT" = "cyan", "BNB" = "red", "USDC" = "grey",
+    "XRP" = "pink", "ADA" = "orange", "DOGE" = "purple", "LTC" = "black", "MATIC" = "brown", "SHIB" = "yellow"
+)
+```
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+selectInput(
+  "crypto", label = "Escolha sua cryptomoeda",
+  choices = c(
+  "BTC", "ETH", "USDT", "BNB", "USDC", "XRP", "ADA", "DOGE", "LTC", "MATIC",
+  "SHIB"
+))
+
+selectInput(
+  "periodo_crypto", label = "Defina o período",
+  choices = c("1M", "6M", "1A", "10A")
+)
+```
+
+Row {data-width=500}
+-----------------------------------------------------------------------
+
+### Tendência
+
+```{r}
+renderPlotly({
+  periodo_crypto <- Sys.Date() - filter(tabela_periodo_crypto, periodo_crypto == input$periodo_crypto)$dias
+
+  prices_crypto %>%
+    filter(date >= periodo_crypto, symbol == input$crypto) %>%
+    ggplot() +
+    aes(x= date, y = adjusted, color = symbol) +
+    scale_color_manual(values = colours_crypto) +
+    geom_line() +
+    labs(x = "", y = "Cotação") +
+    ggtitle(label = input$crypto) +
+    theme(
+      panel.background = element_blank(),
+      plot.title = element_text(size=22),
+      legend.position = "none"
+    )
+})
+```
+
+### Todas as tendências
+
+```{r}
+renderPlotly({
+  periodo_crypto <- Sys.Date() - filter(tabela_periodo_crypto, periodo_crypto == input$periodo_crypto)$dias
+
+  prices_crypto %>%
+    filter(date >= periodo_crypto) %>%
+    ggplot() +
+    aes(x= date, y = adjusted, color = symbol) +
+    geom_line(size = 1.1) +
+    scale_color_manual(values = colours_crypto) +
+    labs(x = "", y = "Cotação", color = "Crypto") +
+    theme(panel.background = element_blank())
+})
+```
+Row {data-width=500}
+-----------------------------------------------------------------------
+### Contações
+```{r}
+renderDataTable({
+  periodo_crypto <- Sys.Date() - filter(tabela_periodo_crypto, periodo_crypto == input$periodo_crypto)$dias
+
+  prices_crypto %>%
+    filter(date >= periodo_crypto, symbol == input$crypto) %>%
+    mutate(across(where(is.double), round, digits = 2)) %>%
+    arrange(desc(date)) %>%
+    rename(
+      Crypto = symbol,
+      Data = date,
+      Abertura = open,
+      Máxima = high,
+      Mínimo = low,
+      Fechamento = close,
+      Volume = volume,
+      Ajustado = adjusted
+    ) %>%
+    datatable(rownames = FALSE)
+})
+```
