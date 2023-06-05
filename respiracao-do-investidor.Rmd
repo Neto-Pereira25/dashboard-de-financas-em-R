@@ -319,8 +319,3 @@ renderDataTable({
 })
 ```
 
-Quarta Forma - Carteira Consolidada
-============================================
-```{r}
-
-```
