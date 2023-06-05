@@ -4,10 +4,17 @@ output:
   flexdashboard::flex_dashboard:
     orientation: columns
     vertical_layout: fill
+    theme:
+      version: 4
+      bootswatch: darkly
 runtime: shiny
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include = FALSE, context = "server"}
+bslib::bs_themer()
+```
+
+```{r}
 library(flexdashboard)
 library(tidyquant)
 library(rvest)
